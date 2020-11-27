@@ -62,12 +62,13 @@ jobs:
         sed -i '/CONFIG_FIRMWARE_INCLUDE_ALIDDNS/d' .config #删除配置项阿里DDNS
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SMARTDNS/d' .config #删除配置项本地DNS服务器SmartDNS
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SRELAY/d' .config #删除配置项Socks5代理Srelay
+		sed -i '/CONFIG_FIRMWARE_INCLUDE_ZEROTIER/d' .config删除配置项内网穿透ZeroTier(1.3M)
         ######################################################################
         #以下选项是定义你需要的功能（y=是,n=否），重新写入到.config文件
         ######################################################################
         echo "CONFIG_FIRMWARE_INCLUDE_MENTOHUST=n" >> .config #写入配置项锐捷认证
         echo "CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=n" >> .config #写入配置项校园网
-        echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=n" >> .config #写入配置项SSRP
+        echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=Y" >> .config #写入配置项SSRP
         echo "CONFIG_FIRMWARE_INCLUDE_SSSERVER=n" >> .config #写入配置项SSRPserver
         echo "CONFIG_FIRMWARE_INCLUDE_DNSFORWARDER=n" >> .config #写入配置项DNS转发DNSforwarder
         echo "CONFIG_FIRMWARE_INCLUDE_ADBYBY=n" >> .config #写入配置项广告过滤
@@ -83,7 +84,7 @@ jobs:
         echo "CONFIG_FIRMWARE_INCLUDE_CADDY=n" >> .config #写入配置项在线文件管理服务Caddy
         echo "CONFIG_FIRMWARE_INCLUDE_WYY=n" >> .config #写入配置项网易云解锁
         echo "CONFIG_FIRMWARE_INCLUDE_ZEROTIER=n" >> .config #写入配置项内网穿透ZeroTier(1.3M)
-        echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNSBIN=y" >> .config #集成SmartDNS二进制文件
+        echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNSBIN=n" >> .config #集成SmartDNS二进制文件
         echo "CONFIG_FIRMWARE_INCLUDE_V2RAY=n" >> .config #集成v2ray执行文件(3.8M)/注意固件大小,不集成会自动下载,不影响使用
         echo "CONFIG_FIRMWARE_INCLUDE_TROJAN=n" >> .config #集成trojan执行文件(1.1M)/注意固件大小,不集成会自动下载,不影响使用
         echo "CONFIG_FIRMWARE_INCLUDE_CADDYBIN=n" >> .config #集成Caddy执行文件(13M)/注意固件大小,不集成会自动下载,不影响使用
@@ -96,13 +97,13 @@ jobs:
         sed -i '/CONFIG_FIRMWARE_CPU_SLEEP/d' .config #删除配置项CPU睡眠模式
         echo "CONFIG_FIRMWARE_CPU_SLEEP=n" >> .config #写入配置项CPU睡眠模式
         sed -i '/CONFIG_FIRMWARE_ENABLE_USB/d' .config #删除配置项USB支持
-        echo "CONFIG_FIRMWARE_ENABLE_USB=y" >> .config #写入配置项USB支持
+        echo "CONFIG_FIRMWARE_ENABLE_USB=n" >> .config #写入配置项USB支持
         sed -i '/CONFIG_FIRMWARE_ENABLE_UFSD/d' .config #删除配置项NTFS文件系统
         echo "CONFIG_FIRMWARE_ENABLE_UFSD=n" >> .config #写入配置项NTFS文件系统
         sed -i '/CONFIG_FIRMWARE_ENABLE_FAT/d' .config #删除配置项FAT/FAT32文件系统
         echo "CONFIG_FIRMWARE_ENABLE_FAT=n" >> .config #写入配置项FAT/FAT32文件系统
         sed -i '/CONFIG_FIRMWARE_ENABLE_EXFAT/d' .config #删除配置项exFAT文件系统
-        echo "CONFIG_FIRMWARE_ENABLE_EXFAT=y" >> .config #写入配置项exFAT文件系统
+        echo "CONFIG_FIRMWARE_ENABLE_EXFAT=n" >> .config #写入配置项exFAT文件系统
         sed -i '/CONFIG_FIRMWARE_ENABLE_XFS/d' .config #删除配置项XFS文件系统
         echo "CONFIG_FIRMWARE_ENABLE_XFS=n" >> .config #写入配置项XFS文件系统
         sed -i '/CONFIG_FIRMWARE_ENABLE_FUSE/d' .config #删除配置项FUSE用户空间文件系统
@@ -124,9 +125,9 @@ jobs:
         sed -i '/CONFIG_FIRMWARE_INCLUDE_PARTED/d' .config #删除配置项磁盘分区工具Parted
         echo "CONFIG_FIRMWARE_INCLUDE_PARTED=n" >> .config #写入配置项磁盘分区工具Parted
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD/d' .config #删除配置项SMB(含WINS)局域网文件共享
-        echo "CONFIG_FIRMWARE_INCLUDE_SMBD=y" >> .config #写入配置项SMB(含WINS)局域网文件共享
+        echo "CONFIG_FIRMWARE_INCLUDE_SMBD=n" >> .config #写入配置项SMB(含WINS)局域网文件共享
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD36/d' .config #删除配置项Samba3.6局域网文件共享
-        echo "CONFIG_FIRMWARE_INCLUDE_SMBD36=y" >> .config #写入配置项Samba3.6局域网文件共享
+        echo "CONFIG_FIRMWARE_INCLUDE_SMBD36=n" >> .config #写入配置项Samba3.6局域网文件共享
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG/d' .config #删除配置项SMB日志
         echo "CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG=n" >> .config #写入配置项SMB日志
         sed -i '/CONFIG_FIRMWARE_INCLUDE_FTPD/d' .config #删除配置项FTP服务
@@ -140,9 +141,9 @@ jobs:
         sed -i '/CONFIG_FIRMWARE_INCLUDE_FFMPEG_NEW/d' .config #删除配置项FFMPEG(MiniDlna和Firefly需要)
         echo "CONFIG_FIRMWARE_INCLUDE_FFMPEG_NEW=n" >> .config #写入配置项FFMPEG(MiniDlna和Firefly需要)
         sed -i '/CONFIG_FIRMWARE_INCLUDE_ARIA/d' .config #删除配置项下载工具Aria2
-        echo "CONFIG_FIRMWARE_INCLUDE_ARIA=y" >> .config #写入配置项下载工具Aria2
+        echo "CONFIG_FIRMWARE_INCLUDE_ARIA=n" >> .config #写入配置项下载工具Aria2
         sed -i '/CONFIG_FIRMWARE_INCLUDE_ARIA_WEB_CONTROL/d' .config #删除配置项Aria2网页界面
-        echo "CONFIG_FIRMWARE_INCLUDE_ARIA_WEB_CONTROL=y" >> .config #写入配置项Aria2网页界面
+        echo "CONFIG_FIRMWARE_INCLUDE_ARIA_WEB_CONTROL=n" >> .config #写入配置项Aria2网页界面
         sed -i '/CONFIG_FIRMWARE_INCLUDE_HTOP/d' .config #删除配置项系统监控与进程管理Htop
         echo "CONFIG_FIRMWARE_INCLUDE_HTOP=n" >> .config #写入配置项系统监控与进程管理Htop
         sed -i '/CONFIG_FIRMWARE_INCLUDE_NANO/d' .config #删除配置项文本编辑器命令行工具nano
