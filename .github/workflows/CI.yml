@@ -1,62 +1,166 @@
-name: CI
+#修改 TNAME: NEWIFI-MINI 中的NEWIFI-MINI为你需要编译的型号!注意名称要与configs/templates/目录下的名字相同
+name: Build Padavan
 
-# Controls when the action will run. 
-on: [push, pull_request, workflow_dispatch, release]
+on: 
+  release:
+    types: [published]
+  push:
+    tags:
+    - 'v*'
+  #  branches: 
+  #    - master
+#  schedule:
+#    - cron: 0 8 * * 5
+  watch:
+    types: [started]
 
-env:
-  toolchain_pkg: mipsel-linux-uclibc.tar.xz
-  toolchain_url: https://github.com/hanwckf/padavan-toolchain/releases/download/v1.1
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build:
-    name: build
-    runs-on: ubuntu-20.04
-    env:
-      build_variant: ${{ matrix.build_variant }}
-      targets: ${{ matrix.targets }}
-    strategy:
-      matrix:
-        include:
-          - build_variant: "mt7620"
-            targets: "PSG1208 PSG1218 "
-       
-          
-           
+    runs-on: ubuntu-18.04
+    if: github.event.repository.owner.id == github.event.sender.id
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Prepare environment
-        run: |
-          sudo apt update
-          sudo apt install libtool-bin gperf python-docutils autopoint gettext
-      - name: Run shellcheck
-        run: sh ./trunk/tools/shellcheck.sh
-      - name: Prepare toolchain
-        run: |
-          mkdir -p /opt/rt-n56u/toolchain-mipsel/toolchain-3.4.x && mkdir -p /opt/images/
-          rm -rf toolchain-mipsel/ && mv -f * .[^.]* /opt/rt-n56u
-          curl -LO ${toolchain_url}/${toolchain_pkg}
-          tar -xf $toolchain_pkg -C /opt/rt-n56u/toolchain-mipsel/toolchain-3.4.x
-      - name: Start build
-        run: |
-          cd /opt/rt-n56u/trunk
-          for m in $targets; do fakeroot ./build_firmware_ci $m; \
-          if [ $? = 0 ]; then cp -f images/*.trx /opt/images/$m.trx; else exit 1; fi; \
-          ./clear_tree_simple >/dev/null 2>&1; done
-      - name: Upload images to file.io
-        if: ${{ github.repository == 'hanwckf/rt-n56u' && github.event_name != 'release' }}
-        run: |
-          cd /opt/rt-n56u
-          GIT_VERSION=`git rev-parse --short=7 HEAD 2>/dev/null` && [ -n "$GIT_VERSION" ] && \
-          image_name=images_${build_variant}_${GIT_VERSION} || image_name=images_${build_variant}
-          cd /opt/images; md5sum *.trx |tee md5sum.txt; 7z a -mx=9 ${image_name}.7z ./*
-          curl -m 120 -F file=@${image_name}.7z https://file.io/?expires=3d ; echo
-      - name: Upload images to Releases
-        if: ${{ github.repository == 'hanwckf/rt-n56u' && github.event_name == 'release' }}
-        uses: svenstaro/upload-release-action@2.2.0
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: /opt/images/*.trx
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
+    - name: Checkout
+      uses: actions/checkout@master
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd fakeroot \
+        cpio git python-docutils gettext automake autopoint texinfo build-essential help2man \
+        pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget
+    - name: Clone source code
+      run: |
+        git clone --depth=1 https://github.com/YJWangGH/rt-n56u.git /opt/rt-n56u
+        cd /opt/rt-n56u/toolchain-mipsel
+        sh dl_toolchain.sh
+        mkdir -p /opt/images/
+    - name: Build Firmware
+      env:
+        TNAME: PSG1218
+      run: |
+        cd /opt/rt-n56u/trunk
+        if [ ! -f configs/templates/$TNAME.config ] ; then
+        echo "configs/templates/$TNAME.config not found "
+        exit 1
+        fi
+        cp -f configs/templates/$TNAME.config .config
+        sed -i 's/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=n/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=y/g' .config
+        ################################################################################################
+        #因不同型号配置功能不一样，所以先把配置项删除，如果你自己要添加其他的，也要写上删除这一条，切记！
+        ################################################################################################
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_MENTOHUST/d' .config #删除配置项锐捷认证
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT/d' .config #删除配置项校园网
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS/d' .config #删除配置项SSRP
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SSSERVER/d' .config #删除配置项SSRPserver
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_DNSFORWARDER/d' .config #删除配置项DNS转发DNSforwarder
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_ADBYBY/d' .config #删除配置项广告过滤
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_FRPC/d' .config #删除配置项内网穿透FRPC
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_FRPS/d' .config #删除配置项内网穿透FRPS
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_TUNSAFE/d' .config #删除配置项TUNSAFE
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_ALIDDNS/d' .config #删除配置项阿里DDNS
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SMARTDNS/d' .config #删除配置项本地DNS服务器SmartDNS
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SRELAY/d' .config #删除配置项Socks5代理Srelay
+        ######################################################################
+        #以下选项是定义你需要的功能（y=是,n=否），重新写入到.config文件
+        ######################################################################
+        echo "CONFIG_FIRMWARE_INCLUDE_MENTOHUST=n" >> .config #写入配置项锐捷认证
+        echo "CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=n" >> .config #写入配置项校园网
+        echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=n" >> .config #写入配置项SSRP
+        echo "CONFIG_FIRMWARE_INCLUDE_SSSERVER=n" >> .config #写入配置项SSRPserver
+        echo "CONFIG_FIRMWARE_INCLUDE_DNSFORWARDER=n" >> .config #写入配置项DNS转发DNSforwarder
+        echo "CONFIG_FIRMWARE_INCLUDE_ADBYBY=n" >> .config #写入配置项广告过滤
+        echo "CONFIG_FIRMWARE_INCLUDE_FRPC=n" >> .config #写入配置项内网穿透FRPC
+        echo "CONFIG_FIRMWARE_INCLUDE_FRPS=n" >> .config #写入配置项内网穿透FRPS
+        echo "CONFIG_FIRMWARE_INCLUDE_TUNSAFE=n" >> .config #写入配置项TUNSAFE
+        echo "CONFIG_FIRMWARE_INCLUDE_ALIDDNS=n" >> .config #写入配置项阿里DDNS
+        echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNS=y" >> .config #写入配置项本地DNS服务器SmartDNS
+        echo "CONFIG_FIRMWARE_INCLUDE_SRELAY=n" >> .config #写入配置项Socks5代理Srelay
+        echo "CONFIG_FIRMWARE_INCLUDE_SSOBFS=n" >> .config #写入配置项SSRP混淆插件simple-obfs
+        echo "CONFIG_FIRMWARE_INCLUDE_KOOLPROXY=n" >> .config #写入配置项广告过滤KoolProxy
+        echo "CONFIG_FIRMWARE_INCLUDE_ADGUARDHOME=n" >> .config #写入配置项DNS广告过滤AdGuardHome
+        echo "CONFIG_FIRMWARE_INCLUDE_CADDY=n" >> .config #写入配置项在线文件管理服务Caddy
+        echo "CONFIG_FIRMWARE_INCLUDE_WYY=n" >> .config #写入配置项网易云解锁
+        echo "CONFIG_FIRMWARE_INCLUDE_ZEROTIER=n" >> .config #写入配置项内网穿透ZeroTier(1.3M)
+        echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNSBIN=y" >> .config #集成SmartDNS二进制文件
+        echo "CONFIG_FIRMWARE_INCLUDE_V2RAY=n" >> .config #集成v2ray执行文件(3.8M)/注意固件大小,不集成会自动下载,不影响使用
+        echo "CONFIG_FIRMWARE_INCLUDE_TROJAN=n" >> .config #集成trojan执行文件(1.1M)/注意固件大小,不集成会自动下载,不影响使用
+        echo "CONFIG_FIRMWARE_INCLUDE_CADDYBIN=n" >> .config #集成Caddy执行文件(13M)/注意固件大小,不集成会自动下载,不影响使用
+        echo "CONFIG_FIRMWARE_INCLUDE_WYYBIN=n" >> .config #集成网易云解锁执行文件(4M)/注意固件大小,不集成会自动下载,不影响使用
+        #########################################################################################
+        #自定义添加其它功能请参考源码configs/templates/目录下的config文件。按照上面的格式添加即可
+        #格式如下：
+        #sed -i '/自定义项/d' .config #删除配置项
+        #echo "自定义项=y" >> .config #写入配置项
+        sed -i '/CONFIG_FIRMWARE_CPU_SLEEP/d' .config #删除配置项CPU睡眠模式
+        echo "CONFIG_FIRMWARE_CPU_SLEEP=n" >> .config #写入配置项CPU睡眠模式
+        sed -i '/CONFIG_FIRMWARE_ENABLE_USB/d' .config #删除配置项USB支持
+        echo "CONFIG_FIRMWARE_ENABLE_USB=y" >> .config #写入配置项USB支持
+        sed -i '/CONFIG_FIRMWARE_ENABLE_UFSD/d' .config #删除配置项NTFS文件系统
+        echo "CONFIG_FIRMWARE_ENABLE_UFSD=n" >> .config #写入配置项NTFS文件系统
+        sed -i '/CONFIG_FIRMWARE_ENABLE_FAT/d' .config #删除配置项FAT/FAT32文件系统
+        echo "CONFIG_FIRMWARE_ENABLE_FAT=n" >> .config #写入配置项FAT/FAT32文件系统
+        sed -i '/CONFIG_FIRMWARE_ENABLE_EXFAT/d' .config #删除配置项exFAT文件系统
+        echo "CONFIG_FIRMWARE_ENABLE_EXFAT=y" >> .config #写入配置项exFAT文件系统
+        sed -i '/CONFIG_FIRMWARE_ENABLE_XFS/d' .config #删除配置项XFS文件系统
+        echo "CONFIG_FIRMWARE_ENABLE_XFS=n" >> .config #写入配置项XFS文件系统
+        sed -i '/CONFIG_FIRMWARE_ENABLE_FUSE/d' .config #删除配置项FUSE用户空间文件系统
+        echo "CONFIG_FIRMWARE_ENABLE_FUSE=n" >> .config #写入配置项FUSE用户空间文件系统
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SERIAL/d' .config #删除配置项USB转串口
+        echo "CONFIG_FIRMWARE_INCLUDE_SERIAL=n" >> .config #写入配置项USB转串口
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_NFSD/d' .config #删除配置项NFS服务
+        echo "CONFIG_FIRMWARE_INCLUDE_NFSD=n" >> .config #写入配置项NFS服务
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_NFSC/d' .config #删除配置项NFS客户
+        echo "CONFIG_FIRMWARE_INCLUDE_NFSC=n" >> .config #写入配置项NFS客户
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_LPRD/d' .config #删除配置项LPR打印
+        echo "CONFIG_FIRMWARE_INCLUDE_LPRD=n" >> .config #写入配置项LPR打印
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_U2EC/d' .config #删除配置项USB打印
+        echo "CONFIG_FIRMWARE_INCLUDE_U2EC=n" >> .config #写入配置项USB打印
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_TCPDUMP/d' .config #删除配置项网络抓包工具TCPdump
+        echo "CONFIG_FIRMWARE_INCLUDE_TCPDUMP=n" >> .config #写入配置项网络抓包工具TCPdump
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_HDPARM/d' .config #删除配置项硬盘高级电源管理HDparm
+        echo "CONFIG_FIRMWARE_INCLUDE_HDPARM=n" >> .config #写入配置项硬盘高级电源管理HDparm
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_PARTED/d' .config #删除配置项磁盘分区工具Parted
+        echo "CONFIG_FIRMWARE_INCLUDE_PARTED=n" >> .config #写入配置项磁盘分区工具Parted
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD/d' .config #删除配置项SMB(含WINS)局域网文件共享
+        echo "CONFIG_FIRMWARE_INCLUDE_SMBD=y" >> .config #写入配置项SMB(含WINS)局域网文件共享
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD36/d' .config #删除配置项Samba3.6局域网文件共享
+        echo "CONFIG_FIRMWARE_INCLUDE_SMBD36=y" >> .config #写入配置项Samba3.6局域网文件共享
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG/d' .config #删除配置项SMB日志
+        echo "CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG=n" >> .config #写入配置项SMB日志
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_FTPD/d' .config #删除配置项FTP服务
+        echo "CONFIG_FIRMWARE_INCLUDE_FTPD=y" >> .config #写入配置项FTP服务
+        sed -i '/CONFIG_FIRMWARE_TREAT_LOGIN_SAFE/d' .config #删除配置项处理登录安全
+        echo "CONFIG_FIRMWARE_TREAT_LOGIN_SAFE=n" >> .config #写入配置项处理登录安全
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SFTP/d' .config #删除配置项SFTP服务
+        echo "CONFIG_FIRMWARE_INCLUDE_SFTP=n" >> .config #写入配置项SFTP服务
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_MINIDLNA/d' .config #删除配置项MiniDlna局域网多媒体共享
+        echo "CONFIG_FIRMWARE_INCLUDE_MINIDLNA=n" >> .config #写入配置项MiniDlna局域网多媒体共享
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_FFMPEG_NEW/d' .config #删除配置项FFMPEG(MiniDlna和Firefly需要)
+        echo "CONFIG_FIRMWARE_INCLUDE_FFMPEG_NEW=n" >> .config #写入配置项FFMPEG(MiniDlna和Firefly需要)
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_ARIA/d' .config #删除配置项下载工具Aria2
+        echo "CONFIG_FIRMWARE_INCLUDE_ARIA=y" >> .config #写入配置项下载工具Aria2
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_ARIA_WEB_CONTROL/d' .config #删除配置项Aria2网页界面
+        echo "CONFIG_FIRMWARE_INCLUDE_ARIA_WEB_CONTROL=y" >> .config #写入配置项Aria2网页界面
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_HTOP/d' .config #删除配置项系统监控与进程管理Htop
+        echo "CONFIG_FIRMWARE_INCLUDE_HTOP=n" >> .config #写入配置项系统监控与进程管理Htop
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_NANO/d' .config #删除配置项文本编辑器命令行工具nano
+        echo "CONFIG_FIRMWARE_INCLUDE_NANO=n" >> .config #写入配置项文本编辑器命令行工具nano
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_IPERF3/d' .config #删除配置项网络性能测试工具Iperf3
+        echo "CONFIG_FIRMWARE_INCLUDE_IPERF3=n" >> .config #写入配置项网络性能测试工具Iperf3
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_MTR/d' .config #删除配置项网络诊断工具Mtr
+        echo "CONFIG_FIRMWARE_INCLUDE_MTR=n" >> .config #写入配置项网络诊断工具Mtr
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SOCAT/d' .config #删除配置项多功能的网络工具Socat
+        echo "CONFIG_FIRMWARE_INCLUDE_SOCAT=n" >> .config #写入配置项多功能的网络工具Socat
+        #########################################################################################
+        sed -i 's/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=n/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=y/g' .config
+        sudo ./clear_tree
+        sudo ./build_firmware_modify $TNAME 0
+        sudo mv -f images/*.trx /opt/images/
+    - name : Upload packages
+      uses: actions/upload-artifact@master
+      if: always()
+      with:
+        name: Padavan-packages
+        path: /opt/images
